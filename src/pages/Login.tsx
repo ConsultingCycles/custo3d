@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock } from 'lucide-react';
+import logo from '../assets/logo.png'; // ← ADICIONADO
 
 export const Login = () => {
   const [username, setUsername] = useState('');
@@ -34,7 +35,8 @@ export const Login = () => {
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
         <div className="mb-8 flex flex-col items-center">
-          <img src="/assets/logo.png" alt="Custo3D" className="h-20 mb-4 object-contain" />
+          <img src={logo} alt="Custo3D" className="h-20 mb-4 object-contain" />
+          {/* ↑ MUDOU: src={logo} */}
           <h1 className="text-3xl font-bold text-white">Bem-vindo</h1>
           <p className="text-gray-400 mt-2">Faça login para continuar</p>
         </div>

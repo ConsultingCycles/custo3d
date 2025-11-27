@@ -4,6 +4,7 @@ import { Trash2, FileText, Search, Eye, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Print } from '../types';
+import logo from '../assets/logo.png';
 
 export const History = () => {
   const { prints, fetchData, deletePrint } = useDataStore();
@@ -37,7 +38,7 @@ export const History = () => {
     
     // Add Logo
     const logoImg = new Image();
-    logoImg.src = '/assets/logo.png';
+    logoImg.src = logo;
     
     logoImg.onload = () => {
       doc.addImage(logoImg, 'PNG', 20, 10, 30, 12);

@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { LayoutDashboard, PlusCircle, History, Disc, ShoppingCart, Settings, Calculator, LogOut, Package } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
+import logo from '../assets/logo.png'; // ← ADICIONE ESTA LINHA
 
 export const ProtectedRoute = () => {
   const { user, loading, initialized } = useAuthStore();
@@ -48,7 +49,8 @@ const Sidebar = () => {
   return (
     <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
       <div className="p-6 flex items-center justify-center border-b border-gray-700">
-        <img src="/assets/logo.png" alt="Custo3D Logo" className="h-12 object-contain" />
+        <img src={logo} alt="Custo3D Logo" className="h-32 object-contain" />
+        {/* ↑ MUDOU AQUI: src={logo} ao invés de src="../assets/logo.png" */}
       </div>
       
       <nav className="flex-1 px-4 py-6 space-y-2">

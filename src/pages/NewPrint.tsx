@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { Calculator, Save, FileText, Plus, Trash2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { useNavigate } from 'react-router-dom';
+import logo from '../assets/logo.png'; // ← ADICIONAR ESTA LINHA
 
 export const NewPrint = ({ isSimulation = false }: { isSimulation?: boolean }) => {
   const { filaments, marketplaces, addPrint, fetchData } = useDataStore();
@@ -131,7 +132,7 @@ export const NewPrint = ({ isSimulation = false }: { isSimulation?: boolean }) =
     
     // Add Logo
     const logoImg = new Image();
-    logoImg.src = '/assets/logo.png';
+    logoImg.src = logo;
     
     logoImg.onload = () => {
       // Header
