@@ -8,8 +8,8 @@ interface AuthState {
   config: UserConfig | null;
   loading: boolean;
   initialized: boolean;
-  signIn: (email: string) => Promise<void>;
-  loginAsAdmin: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
   fetchProfile: () => Promise<void>;
 }
@@ -21,92 +21,65 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: true,
   initialized: false,
 
-  signIn: async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
+  signIn: async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({
       email,
+      password,
+    });
+    if (error) throw error;
+  },
+
+  signUp: async (email, password, fullName) => {
+    // Envia o nome nos metadados para o Trigger SQL pegar
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
       options: {
-        emailRedirectTo: window.location.origin,
+        data: {
+          full_name: fullName,
+        },
       },
     });
     if (error) throw error;
   },
 
-  loginAsAdmin: async () => {
-    // Mock admin user
-    const adminUser = {
-      id: '00000000-0000-0000-0000-000000000000',
-      email: 'admin@custo3d.app',
-      user_metadata: { full_name: 'Administrador' }
-    };
-
-    // Fetch admin profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', adminUser.id)
-      .single();
-
-    const { data: config } = await supabase
-      .from('user_configs')
-      .select('*')
-      .eq('user_id', adminUser.id)
-      .single();
-
-    set({ 
-      user: adminUser, 
-      profile: profile, 
-      config: config, 
-      loading: false, 
-      initialized: true 
-    });
-    
-    // Persist mock session in localStorage for persistence across reloads
-    localStorage.setItem('custo3d_mock_session', 'true');
-  },
-
   signOut: async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem('custo3d_mock_session');
     set({ user: null, profile: null, config: null });
   },
 
   fetchProfile: async () => {
-    // Check for mock session first
-    if (localStorage.getItem('custo3d_mock_session') === 'true') {
-      get().loginAsAdmin();
-      return;
-    }
-
     const { data: { user } } = await supabase.auth.getUser();
+    
     if (!user) {
       set({ user: null, profile: null, config: null, loading: false, initialized: true });
       return;
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    try {
+      const [profileRes, configRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        supabase.from('user_configs').select('*').eq('user_id', user.id).maybeSingle()
+      ]);
 
-    const { data: config } = await supabase
-      .from('user_configs')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    set({ user, profile, config, loading: false, initialized: true });
+      set({ 
+        user, 
+        profile: profileRes.data, 
+        config: configRes.data, 
+        loading: false, 
+        initialized: true 
+      });
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+      set({ loading: false, initialized: true });
+    }
   },
 }));
 
-// Initialize auth listener
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
     useAuthStore.getState().fetchProfile();
   } else if (event === 'SIGNED_OUT') {
-    // Only clear if not in mock session
-    if (localStorage.getItem('custo3d_mock_session') !== 'true') {
-      useAuthStore.setState({ user: null, profile: null, config: null, loading: false });
-    }
+    useAuthStore.setState({ user: null, profile: null, config: null, loading: false });
   }
 });

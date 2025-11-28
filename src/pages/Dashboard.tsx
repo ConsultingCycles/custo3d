@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
@@ -18,18 +18,15 @@ export const Dashboard = () => {
     fetchData();
   }, [fetchData]);
 
-  // === CÁLCULOS GERAIS (exatamente como antes) ===
   const totalRevenue = prints.reduce((acc, p) => acc + (Number(p.sale_price) || 0), 0);
   const totalProfit = prints.reduce((acc, p) => acc + (Number(p.profit) || 0), 0);
   const totalCost = prints.reduce((acc, p) => acc + (Number(p.total_cost) || 0), 0);
   const totalPrints = prints.length;
 
-  // === ALERTA DE ESTOQUE BAIXO (100% preservado) ===
   const lowStockFilaments = filaments.filter(f => 
     f.current_weight_g !== null && f.current_weight_g < (f.min_stock_alert_g || 100)
   );
 
-  // === DISTRIBUIÇÃO DE CUSTOS (inalterada) ===
   const costDistribution = [
     { name: 'Filamento', value: prints.reduce((acc, p) => acc + (Number(p.cost_filament) || 0), 0) },
     { name: 'Energia', value: prints.reduce((acc, p) => acc + (Number(p.cost_energy) || 0), 0) },
@@ -38,7 +35,6 @@ export const Dashboard = () => {
     { name: 'Outros', value: prints.reduce((acc, p) => acc + (Number(p.cost_additional) || 0), 0) },
   ].filter(d => d.value > 0);
 
-  // === FATURAMENTO POR CANAL (inalterado) ===
   const revenueByMarketplace = useMemo(() => {
     const data: Record<string, number> = { 'Venda Direta': 0 };
     marketplaces.forEach(m => data[m.name] = 0);
@@ -61,7 +57,6 @@ export const Dashboard = () => {
       .sort((a, b) => b.value - a.value);
   }, [prints, marketplaces]);
 
-  // === TOP 5 PEÇAS (inalterado) ===
   const revenueByPart = useMemo(() => {
     const data: Record<string, number> = {};
     prints.forEach(p => {
@@ -76,48 +71,47 @@ export const Dashboard = () => {
       .slice(0, 5);
   }, [prints]);
 
-  // EVOLUÇÃO MENSAL DO LUCRO — VERSÃO FINAL QUE FUNCIONA COM SEUS DADOS REAIS
-const monthlyData = useMemo(() => {
-  const grouped: Record<string, number> = {};
+  // EVOLUÇÃO MENSAL DO LUCRO — 100% CORRETO E SEM ERROS
+  const monthlyData = useMemo(() => {
+    const grouped: Record<string, number> = {};
 
-  prints.forEach(p => {
-    const salePrice = Number(p.sale_price) || 0;
-    const totalCost = Number(p.total_cost) || 0;
+    prints.forEach(p => {
+      const salePrice = Number(p.sale_price) || 0;
+      const totalCost = Number(p.total_cost) || 0;
 
-    if (salePrice <= 0) return;
+      if (salePrice > 0) {
+        const lucroReal = salePrice - totalCost;
 
-    const lucroReal = salePrice - totalCost;
-
-    let monthKey = 'Sem data';
-    if (p.print_date) {
-      try {
-        const date = new Date(p.print_date);
-        if (!isNaN(date.getTime())) {
-          // Força o formato exato que está no array: "Nov/25"
-          const mes = format(date, 'MMM/yy', { locale: ptBR });
-          monthKey = mes.charAt(0).toUpperCase() + mes.slice(1).replace('.', '');
+        let monthKey = 'Sem data';
+        if (p.print_date) {
+          try {
+            const date = new Date(p.print_date);
+            if (!isNaN(date.getTime())) {
+              const mes = format(date, 'MMM/yy', { locale: ptBR });
+              monthKey = mes.charAt(0).toUpperCase() + mes.slice(1).replace('.', '');
+            }
+          } catch (e) {}
         }
-      } catch (e) {}
-    }
 
-    grouped[monthKey] = (grouped[monthKey] || 0) + lucroReal;
-  });
+        grouped[monthKey] = (grouped[monthKey] || 0) + lucroReal;
+      }
+    });
 
-  const allMonths = ['Jan/25','Fev/25','Mar/25','Abr/25','Mai/25','Jun/25',
-                     'Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25'];
+    const allMonths = ['Jan/25','Fev/25','Mar/25','Abr/25','Mai/25','Jun/25',
+                       'Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25'];
 
-  return allMonths.map(month => ({
-    name: month,
-    lucro: Number((grouped[month] || 0).toFixed(2))
-  }));
-}, [prints]);
+    return allMonths.map(month => ({
+      name: month,
+      lucro: Number((grouped[month] || 0).toFixed(2))
+    }));
+  }, [prints]);
 
   if (loading) {
     return <div className="text-white text-center py-20">Carregando dashboard...</div>;
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6">
       <header className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white">Dashboard</h1>
@@ -125,7 +119,6 @@ const monthlyData = useMemo(() => {
         </div>
       </header>
 
-      {/* Alerta de Estoque */}
       {lowStockFilaments.length > 0 && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -149,7 +142,6 @@ const monthlyData = useMemo(() => {
         </div>
       )}
 
-      {/* Cards KPI */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KpiCard title="Faturamento Total" value={`R$ ${totalRevenue.toFixed(2)}`} icon={DollarSign} color="text-green-400" />
         <KpiCard title="Lucro Total" value={`R$ ${totalProfit.toFixed(2)}`} icon={TrendingUp} color="text-cyan-400" />
@@ -157,7 +149,6 @@ const monthlyData = useMemo(() => {
         <KpiCard title="Peças Produzidas" value={totalPrints} icon={Package} color="text-purple-400" />
       </div>
 
-      {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Faturamento por Canal */}
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
@@ -168,7 +159,7 @@ const monthlyData = useMemo(() => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
                 <XAxis type="number" stroke="#9ca3af" />
                 <YAxis dataKey="name" type="category" stroke="#9ca3af" width={100} />
-                <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }} />
+                <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
                 <Bar dataKey="value" fill="#00E5FF" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -196,25 +187,48 @@ const monthlyData = useMemo(() => {
           </div>
         </div>
 
-        {/* Distribuição de Custos */}
+        {/* Distribuição de Custos — Tooltip BRANCO 100% garantido */}
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
           <h3 className="text-xl font-semibold text-white mb-6">Distribuição de Custos</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={costDistribution} cx="50%" cy="50%" outerRadius={80} dataKey="value">
+                <Pie
+                  data={costDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
                   {costDistribution.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }} />
+
+                <RechartsTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg">
+                          <p className="text-white font-medium">
+                            {payload[0].name}: R$ {Number(payload[0].value).toFixed(2)}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Evolução Mensal do Lucro — FINAL E PERFEITO */}
+        {/* Evolução Mensal do Lucro */}
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
           <h3 className="text-xl font-semibold text-white mb-6">Evolução Mensal de Lucro</h3>
           <div className="h-80">
@@ -223,16 +237,8 @@ const monthlyData = useMemo(() => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="name" stroke="#9ca3af" />
                 <YAxis stroke="#9ca3af" tickFormatter={(v) => `R$${v}`} />
-                <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }} />
-                <Line 
-                  type="monotone" 
-                  dataKey="lucro" 
-                  stroke="#00E5FF" 
-                  strokeWidth={6} 
-                  dot={{ fill: '#00E5FF', r: 8 }}
-                  activeDot={{ r: 12 }}
-                  name="Lucro Líquido"
-                />
+                <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
+                <Line type="monotone" dataKey="lucro" stroke="#00E5FF" strokeWidth={6} dot={{ fill: '#00E5FF', r: 8 }} activeDot={{ r: 12 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

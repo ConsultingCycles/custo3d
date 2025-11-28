@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock } from 'lucide-react';
-import logo from '../assets/logo.png'; // ← ADICIONADO
+import { User, Lock, Mail, ArrowRight, UserPlus } from 'lucide-react';
+import logo from '../assets/logo.png'; 
 
 export const Login = () => {
-  const [username, setUsername] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false); // Alterna entre Login e Cadastro
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
-  const { loginAsAdmin } = useAuthStore();
+  
+  const { signIn, signUp } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -16,16 +19,17 @@ export const Login = () => {
     setLoading(true);
     
     try {
-      // Check for hardcoded admin credentials
-      if (username === 'admin' && password === 'adimin') {
-        await loginAsAdmin();
-        navigate('/');
+      if (isRegistering) {
+        await signUp(email, password, fullName);
+        alert('Conta criada com sucesso! Verifique seu e-mail para confirmar (se necessário) ou faça login.');
+        setIsRegistering(false); // Volta para tela de login
       } else {
-        alert('Usuário ou senha incorretos');
+        await signIn(email, password);
+        navigate('/');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Erro ao fazer login');
+      alert(error.message || 'Erro na autenticação');
     } finally {
       setLoading(false);
     }
@@ -36,48 +40,66 @@ export const Login = () => {
       <div className="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
         <div className="mb-8 flex flex-col items-center">
           <img src={logo} alt="Custo3D" className="h-20 mb-4 object-contain" />
-          {/* ↑ MUDOU: src={logo} */}
-          <h1 className="text-3xl font-bold text-white">Bem-vindo</h1>
-          <p className="text-gray-400 mt-2">Faça login para continuar</p>
+          <h1 className="text-3xl font-bold text-white">
+            {isRegistering ? 'Criar Conta' : 'Bem-vindo'}
+          </h1>
+          <p className="text-gray-400 mt-2">
+            {isRegistering ? 'Preencha os dados abaixo' : 'Faça login para continuar'}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Campo Nome (Só aparece no cadastro) */}
+          {isRegistering && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Nome Completo</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  required={isRegistering}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all"
+                  placeholder="Seu nome"
+                />
+              </div>
+            </div>
+          )}
+
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
-              Usuário
-            </label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">E-mail</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
+                <Mail className="h-5 w-5 text-gray-400" />
               </div>
               <input
-                type="text"
-                id="username"
+                type="email"
                 required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all"
-                placeholder="Digite seu usuário"
+                placeholder="seu@email.com"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-              Senha
-            </label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Senha</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="password"
-                id="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all"
-                placeholder="Digite sua senha"
+                placeholder="******"
+                minLength={6}
               />
             </div>
           </div>
@@ -85,14 +107,23 @@ export const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
+            className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
           >
-            {loading ? 'Entrando...' : 'Entrar'}
+            {loading ? 'Processando...' : (isRegistering ? 'Cadastrar' : 'Entrar')}
+            {!loading && (isRegistering ? <UserPlus size={20} /> : <ArrowRight size={20} />)}
           </button>
         </form>
         
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Esqueceu a senha? Contate o administrador.</p>
+        <div className="mt-6 text-center pt-6 border-t border-gray-700">
+          <p className="text-gray-400 text-sm mb-2">
+            {isRegistering ? 'Já tem uma conta?' : 'Ainda não tem conta?'}
+          </p>
+          <button 
+            onClick={() => setIsRegistering(!isRegistering)}
+            className="text-cyan-400 hover:text-cyan-300 font-medium hover:underline transition-colors"
+          >
+            {isRegistering ? 'Fazer Login' : 'Criar nova conta'}
+          </button>
         </div>
       </div>
     </div>
