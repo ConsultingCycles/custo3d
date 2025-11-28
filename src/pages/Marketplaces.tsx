@@ -1,53 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { useForm } from 'react-hook-form';
-import { Plus, Trash2, Edit2, X, ShoppingBag } from 'lucide-react';
+import { ShoppingBag, Plus, Trash2, X, AlertCircle, Store } from 'lucide-react';
 
 export const Marketplaces = () => {
-  const { marketplaces, addMarketplace, updateMarketplace, deleteMarketplace } = useDataStore();
+  const { marketplaces, fetchData, addMarketplace, deleteMarketplace } = useDataStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const { register, handleSubmit, reset } = useForm();
 
-  const { register, handleSubmit, reset, setValue } = useForm();
-
-  const openModal = (marketplace?: any) => {
-    if (marketplace) {
-      setEditingId(marketplace.id);
-      setValue('name', marketplace.name);
-      setValue('fee_percent', marketplace.fee_percent);
-      setValue('fee_fixed', marketplace.fee_fixed);
-      setValue('notes', marketplace.notes);
-    } else {
-      setEditingId(null);
-      reset();
-    }
-    setIsModalOpen(true);
-  };
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const onSubmit = async (data: any) => {
     try {
-      const payload = {
+      await addMarketplace({
         name: data.name,
         fee_percent: Number(data.fee_percent),
         fee_fixed: Number(data.fee_fixed),
         notes: data.notes
-      };
-
-      if (editingId) {
-        await updateMarketplace(editingId, payload);
-      } else {
-        await addMarketplace(payload);
-      }
+      });
       setIsModalOpen(false);
       reset();
     } catch (error) {
-      console.error(error);
-      alert('Erro ao salvar marketplace');
+      alert('Erro ao salvar canal de venda');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este marketplace?')) {
+    if (confirm('Tem certeza que deseja excluir este canal?')) {
       await deleteMarketplace(id);
     }
   };
@@ -55,103 +34,140 @@ export const Marketplaces = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-white">Marketplaces</h1>
-        <button
-          onClick={() => openModal()}
-          className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-4 rounded-lg transition-colors"
+        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+          <Store className="text-cyan-400" /> Canais de Venda
+        </h1>
+        <button 
+          onClick={() => setIsModalOpen(true)} 
+          className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-4 rounded-lg flex items-center gap-2"
         >
-          <Plus size={20} />
-          Novo Marketplace
+          <Plus size={20} /> Novo Canal
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {marketplaces.map((marketplace) => (
-          <div key={marketplace.id} className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-cyan-500/50 transition-colors">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-gray-700 rounded-lg text-cyan-400">
-                <ShoppingBag size={24} />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">{marketplace.name}</h3>
-                <p className="text-gray-400 text-sm">Taxas configuradas</p>
-              </div>
-            </div>
-            
-            <div className="space-y-2 text-sm text-gray-300 mb-6">
-              <div className="flex justify-between">
-                <span>Comissão (%):</span>
-                <span className="font-medium text-white">{marketplace.fee_percent}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Taxa Fixa:</span>
-                <span className="font-medium text-white">R$ {marketplace.fee_fixed.toFixed(2)}</span>
-              </div>
-              {marketplace.notes && (
-                <div className="pt-2 border-t border-gray-700 mt-2">
-                  <p className="text-xs text-gray-500">{marketplace.notes}</p>
+        {marketplaces.map((m) => (
+          <div key={m.id} className="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-cyan-500/50 transition relative group">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-gray-700 p-2 rounded-lg text-cyan-400">
+                  <ShoppingBag size={24} />
                 </div>
-              )}
+                <div>
+                  <h3 className="text-xl font-bold text-white">{m.name}</h3>
+                  <p className="text-xs text-gray-400">Canal Ativo</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => handleDelete(m.id)}
+                className="text-gray-500 hover:text-red-400 transition p-2"
+                title="Excluir Canal"
+              >
+                <Trash2 size={18} />
+              </button>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => openModal(marketplace)}
-                className="flex-1 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors"
-              >
-                <Edit2 size={16} /> Editar
-              </button>
-              <button
-                onClick={() => handleDelete(marketplace.id)}
-                className="flex items-center justify-center px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
+            <div className="space-y-3 bg-gray-700/30 p-4 rounded-lg border border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Comissão (%)</span>
+                <span className="text-white font-bold text-lg">{m.fee_percent}%</span>
+              </div>
+              <div className="w-full h-px bg-gray-600/50"></div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Taxa Fixa (R$)</span>
+                <span className="text-white font-bold text-lg">R$ {m.fee_fixed.toFixed(2)}</span>
+              </div>
             </div>
+
+            {m.notes && (
+              <div className="mt-4 text-xs text-gray-500 italic">
+                "{m.notes}"
+              </div>
+            )}
           </div>
         ))}
+
+        {marketplaces.length === 0 && (
+          <div className="col-span-full py-12 text-center text-gray-500 bg-gray-800/50 rounded-xl border border-dashed border-gray-700">
+            <p>Nenhum canal de venda cadastrado.</p>
+            <p className="text-sm mt-2">Cadastre Shopee, Mercado Livre ou Venda Direta para calcular as taxas automaticamente.</p>
+          </div>
+        )}
       </div>
 
-      {/* Modal */}
+      {/* Modal de Cadastro */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md p-6 shadow-2xl animate-fade-in">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-white">
-                {editingId ? 'Editar Marketplace' : 'Novo Marketplace'}
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white">
+              <h2 className="text-xl font-bold text-white">Novo Canal de Venda</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white transition">
                 <X size={24} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Nome</label>
-                <input {...register('name', { required: true })} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Ex: Shopee, Mercado Livre" />
+                <label className="block text-sm text-gray-400 mb-1">Nome do Canal</label>
+                <input 
+                  {...register('name', { required: true })} 
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" 
+                  placeholder="Ex: Shopee, Mercado Livre, Instagram" 
+                />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Comissão (%)</label>
-                  <input type="number" step="0.01" {...register('fee_percent')} defaultValue={0} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" />
+                  <label className="block text-sm text-gray-400 mb-1">Comissão (%)</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      {...register('fee_percent', { required: true })} 
+                      defaultValue={0}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" 
+                    />
+                    <span className="absolute right-3 top-2 text-gray-500">%</span>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Taxa Fixa (R$)</label>
-                  <input type="number" step="0.01" {...register('fee_fixed')} defaultValue={0} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" />
+                  <label className="block text-sm text-gray-400 mb-1">Taxa Fixa (R$)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500">R$</span>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      {...register('fee_fixed', { required: true })} 
+                      defaultValue={0}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-9 pr-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" 
+                    />
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Observações</label>
-                <textarea {...register('notes')} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" rows={3} />
+                <label className="block text-sm text-gray-400 mb-1">Observações</label>
+                <textarea 
+                  {...register('notes')} 
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" 
+                  rows={2} 
+                  placeholder="Ex: Taxa de frete grátis acima de R$ 39"
+                />
               </div>
 
-              <button
-                type="submit"
-                className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-3 rounded-lg transition-colors"
+              <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex gap-3 items-start">
+                <AlertCircle className="text-blue-400 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-blue-200 leading-relaxed">
+                  Ao selecionar este canal num pedido, o sistema descontará automaticamente 
+                  <strong> {`%`} + Taxa Fixa</strong> do valor total para calcular seu <strong>Lucro Líquido</strong>.
+                </p>
+              </div>
+
+              <button 
+                type="submit" 
+                className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-3 rounded-lg transition transform active:scale-[0.98]"
               >
-                Salvar
+                Salvar Canal
               </button>
             </form>
           </div>

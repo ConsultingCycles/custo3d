@@ -1,85 +1,83 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { LayoutDashboard, PlusCircle, History, Disc, ShoppingCart, Settings, Calculator, LogOut, Package } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
-import clsx from 'clsx';
-import logo from '../assets/logo.png'; // ← ADICIONE ESTA LINHA
+import { 
+  LayoutDashboard, 
+  Printer, 
+  Package, 
+  ShoppingCart, 
+  Settings, 
+  LogOut, 
+  FileText, 
+  Factory,
+  Store // Adicionado ícone de loja
+} from 'lucide-react';
 
 export const ProtectedRoute = () => {
-  const { user, loading, initialized } = useAuthStore();
-
-  if (loading || !initialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return (
-    <div className="flex h-screen bg-gray-900 text-gray-100 overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto p-8">
-        <Outlet />
-      </main>
-    </div>
-  );
-};
-
-const Sidebar = () => {
+  const { user, signOut } = useAuthStore();
   const location = useLocation();
-  const { signOut } = useAuthStore();
 
-  const navItems = [
+  if (!user) return <div className="text-white p-10 text-center">Carregando sistema...</div>;
+
+  const menuItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/new-print', icon: PlusCircle, label: 'Nova Impressão' },
-    { path: '/history', icon: History, label: 'Histórico' },
-    { path: '/filaments', icon: Disc, label: 'Filamentos' },
-    { path: '/stock', icon: Package, label: 'Estoque' },
-    { path: '/marketplaces', icon: ShoppingCart, label: 'Marketplaces' },
-    { path: '/simulation', icon: Calculator, label: 'Simulação' },
+    { path: '/orders', icon: ShoppingCart, label: 'Vendas' },
+    { path: '/production', icon: Factory, label: 'Produção' },
+    { path: '/products', icon: Package, label: 'Produtos' },
+    { path: '/marketplaces', icon: Store, label: 'Canais de Venda' }, // <--- Item Novo
+    { path: '/printers', icon: Printer, label: 'Impressoras' },
+    { path: '/filaments', icon: FileText, label: 'Filamentos' },
     { path: '/settings', icon: Settings, label: 'Configurações' },
   ];
 
   return (
-    <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
-      <div className="p-6 flex items-center justify-center border-b border-gray-700">
-        <img src={logo} alt="Custo3D Logo" className="h-32 object-contain" />
-        {/* ↑ MUDOU AQUI: src={logo} ao invés de src="../assets/logo.png" */}
-      </div>
-      
-      <nav className="flex-1 px-4 py-6 space-y-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={clsx(
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
-              location.pathname === item.path
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-            )}
-          >
-            <item.icon size={20} />
-            <span className="font-medium">{item.label}</span>
-          </Link>
-        ))}
-      </nav>
+    <div className="flex min-h-screen bg-gray-900">
+      {/* Sidebar Fixa */}
+      <aside className="w-64 bg-gray-800 border-r border-gray-700 fixed h-full z-10">
+        <div className="p-6">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            Custo3D
+          </h1>
+          <p className="text-xs text-gray-500 mt-1">Gestão de Impressão</p>
+        </div>
 
-      <div className="p-4 border-t border-gray-700">
-        <button
-          onClick={() => signOut()}
-          className="flex items-center gap-3 px-4 py-3 w-full text-left text-gray-400 hover:bg-gray-700 hover:text-white rounded-lg transition-colors"
-        >
-          <LogOut size={20} />
-          <span className="font-medium">Sair</span>
-        </button>
-      </div>
-    </aside>
+        <nav className="px-4 space-y-1 overflow-y-auto max-h-[calc(100vh-180px)]">
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
+                  isActive 
+                    ? 'bg-cyan-500/10 text-cyan-400 font-medium' 
+                    : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <item.icon size={20} className={`transition-colors ${isActive ? 'text-cyan-400' : 'text-gray-500 group-hover:text-white'}`} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Rodapé da Sidebar */}
+        <div className="absolute bottom-0 w-full p-4 border-t border-gray-700 bg-gray-800">
+          <button 
+            onClick={signOut}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg transition-colors text-sm font-medium"
+          >
+            <LogOut size={18} /> Sair do Sistema
+          </button>
+        </div>
+      </aside>
+
+      {/* Conteúdo Principal */}
+      <main className="ml-64 flex-1 p-8 bg-gray-900 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          <Outlet />
+        </div>
+      </main>
+    </div>
   );
 };

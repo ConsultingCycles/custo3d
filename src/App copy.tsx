@@ -2,17 +2,15 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { NewPrint } from './pages/NewPrint';
+import { History } from './pages/History';
+import { Filaments } from './pages/Filaments';
+import { Stock } from './pages/Stock';
+import { Marketplaces } from './pages/Marketplaces';
+import { Simulation } from './pages/Simulation';
+import { Settings } from './pages/Settings';
 import { ProtectedRoute } from './components/Layout';
 import { useAuthStore } from './store/authStore';
-
-import { Printers } from './pages/Printers';
-import { Products } from './pages/Products';
-import { Production } from './pages/Production';
-import { Filaments } from './pages/Filaments';
-import { Orders } from './pages/Orders';
-import { NewOrder } from './pages/NewOrder';
-import { Marketplaces } from './pages/Marketplaces';
-import { Settings } from './pages/Settings';
 
 function App() {
   const { fetchProfile } = useAuthStore();
@@ -28,19 +26,12 @@ function App() {
         
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Dashboard />} />
-          
-          <Route path="/printers" element={<Printers />} />
-          <Route path="/products" element={<Products />} />
+          <Route path="/new-print" element={<NewPrint />} />
+          <Route path="/history" element={<History />} />
           <Route path="/filaments" element={<Filaments />} />
+          <Route path="/stock" element={<Stock />} />
           <Route path="/marketplaces" element={<Marketplaces />} />
-          
-          <Route path="/production" element={<Production />} />
-          <Route path="/orders" element={<Orders />} />
-          
-          {/* Rotas de Pedido (Novo e Edição) */}
-          <Route path="/orders/new" element={<NewOrder />} />
-          <Route path="/orders/edit/:id" element={<NewOrder />} />
-          
+          <Route path="/simulation" element={<Simulation />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
 

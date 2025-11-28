@@ -1,0 +1,180 @@
+import React, { useState, useEffect } from 'react';
+import { useDataStore } from '../store/dataStore';
+import { useForm } from 'react-hook-form';
+import { Package, Plus, Edit2, Trash2, X, Search, AlertCircle } from 'lucide-react';
+
+export const Products = () => {
+  const { products, fetchData, addProduct, updateProduct, deleteProduct } = useDataStore();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const { register, handleSubmit, reset, setValue } = useForm();
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+
+  const openModal = (prod?: any) => {
+    if (prod) {
+      setEditingId(prod.id);
+      setValue('name', prod.name);
+      setValue('sku', prod.sku);
+      setValue('description', prod.description);
+      setValue('suggested_price', prod.suggested_price);
+    } else {
+      setEditingId(null);
+      reset();
+    }
+    setIsModalOpen(true);
+  };
+
+  const onSubmit = async (data: any) => {
+    const payload = {
+      name: data.name,
+      sku: data.sku,
+      description: data.description,
+      suggested_price: Number(data.suggested_price)
+    };
+    if (editingId) await updateProduct(editingId, payload);
+    else await addProduct(payload);
+    setIsModalOpen(false);
+    reset();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+          <Package className="text-cyan-400" /> Catálogo de Produtos
+        </h1>
+        <button onClick={() => openModal()} className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+          <Plus size={20} /> Novo Produto
+        </button>
+      </div>
+
+      {/* Barra de Busca */}
+      <div className="bg-gray-800 border border-gray-700 rounded-lg p-2 flex items-center gap-2">
+        <Search className="text-gray-400 ml-2" size={20} />
+        <input 
+          type="text" 
+          placeholder="Buscar produto por nome..." 
+          className="bg-transparent text-white w-full focus:outline-none placeholder-gray-500"
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {/* Tabela de Produtos (Lista) */}
+      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-900/50 text-gray-400 uppercase font-medium border-b border-gray-700">
+              <tr>
+                <th className="px-6 py-4">Nome / Descrição</th>
+                <th className="px-6 py-4">SKU</th>
+                <th className="px-6 py-4 text-center">Estoque</th>
+                <th className="px-6 py-4 text-right">Custo Médio</th>
+                <th className="px-6 py-4 text-right">Preço Sugerido</th>
+                <th className="px-6 py-4 text-center w-24">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-700">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    Nenhum produto encontrado.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-700/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-white text-base">{p.name}</div>
+                      {p.description && (
+                        <div className="text-gray-500 text-xs mt-0.5 truncate max-w-xs">{p.description}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-gray-400">
+                      {p.sku || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`inline-block px-3 py-1 rounded-full font-bold text-sm ${
+                        p.stock_quantity > 0 ? 'bg-cyan-500/10 text-cyan-400' : 'bg-red-500/10 text-red-400'
+                      }`}>
+                        {p.stock_quantity}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-gray-300">
+                      R$ {p.average_cost?.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 text-right font-medium text-green-400">
+                      R$ {p.suggested_price?.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => openModal(p)} 
+                          className="p-2 hover:bg-cyan-500/20 text-cyan-400 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => { if(confirm('Tem certeza que deseja excluir este produto?')) deleteProduct(p.id) }} 
+                          className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal de Cadastro/Edição (Mantido igual) */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                {editingId ? <Edit2 size={20} className="text-cyan-400"/> : <Plus size={20} className="text-cyan-400"/>}
+                {editingId ? 'Editar Produto' : 'Novo Produto'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white transition-colors"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Nome do Produto</label>
+                <input {...register('name', { required: true })} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-all" placeholder="Ex: Vaso Geométrico" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">SKU (Cód.)</label>
+                  <input {...register('sku')} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" placeholder="Ex: VAS-01" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Preço Sugerido (Venda)</label>
+                  <input type="number" step="0.01" {...register('suggested_price')} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" placeholder="0.00" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Descrição</label>
+                <textarea {...register('description')} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" rows={3} placeholder="Detalhes opcionais..." />
+              </div>
+              
+              <div className="pt-2">
+                <button type="submit" className="w-full bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold py-3 rounded-lg shadow-lg shadow-cyan-500/20 transition-all transform active:scale-[0.98]">
+                  Salvar Produto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
