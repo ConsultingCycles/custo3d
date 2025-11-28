@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* FIX RECHARTS — SÓ ESSA LINHA RESOLVE TUDO */
+.recharts-wrapper svg {
+  overflow: visible !important;
+}
