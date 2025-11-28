@@ -15,7 +15,6 @@ interface DataState {
   
   fetchData: () => Promise<void>;
   
-  // Cadastros
   addPrinter: (data: Omit<Printer, 'id' | 'user_id' | 'total_hours_printed'>) => Promise<void>;
   updatePrinter: (id: string, data: Partial<Printer>) => Promise<void>;
   deletePrinter: (id: string) => Promise<void>;
@@ -39,14 +38,15 @@ interface DataState {
 
   updateConfig: (config: Partial<UserConfig>) => Promise<void>;
 
-  // Ações Complexas
   registerProduction: (printData: Omit<Print, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
-  deletePrint: (id: string) => Promise<void>; // <--- NOVA FUNÇÃO
+  deletePrint: (id: string) => Promise<void>;
   
   createOrder: (order: Omit<Order, 'id' | 'user_id'>, items: any[]) => Promise<void>;
   updateOrder: (id: string, order: Partial<Order>, items: any[]) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   finalizeOrder: (orderId: string) => Promise<void>;
+
+  importOrdersBatch: (orders: any[], marketplaceId: string) => Promise<void>;
 }
 
 export const useDataStore = create<DataState>((set, get) => ({
@@ -67,9 +67,10 @@ export const useDataStore = create<DataState>((set, get) => ({
         supabase.from('printers').select('*').order('name'),
         supabase.from('products').select('*').order('name'),
         supabase.from('marketplaces').select('*').order('name'),
+        // O Alias 'items:order_items(*)' já renomeia a propriedade para 'items'
         supabase.from('orders').select('*, items:order_items(*)').order('created_at', { ascending: false }),
         supabase.from('expenses').select('*').order('name'),
-        supabase.from('prints').select('*').order('created_at', { ascending: false }), // Carregando histórico
+        supabase.from('prints').select('*').order('created_at', { ascending: false }),
       ]);
 
       set({
@@ -77,7 +78,7 @@ export const useDataStore = create<DataState>((set, get) => ({
         printers: print.data || [],
         products: prod.data || [],
         marketplaces: mkt.data || [],
-        orders: ord.data || [],
+        orders: ord.data || [], // CORREÇÃO: Usa direto o dado do banco, sem remapear errado
         expenses: exp.data || [],
         prints: prt.data || [],
       });
@@ -86,7 +87,7 @@ export const useDataStore = create<DataState>((set, get) => ({
     }
   },
 
-  // ... (CRUDs anteriores mantidos iguais) ...
+  // ... CRUDs mantidos ...
   addPrinter: async (data) => { const user = useAuthStore.getState().user; if (!user) return; await supabase.from('printers').insert([{ ...data, user_id: user.id }]); get().fetchData(); },
   updatePrinter: async (id, data) => { await supabase.from('printers').update(data).eq('id', id); get().fetchData(); },
   deletePrinter: async (id) => { await supabase.from('printers').delete().eq('id', id); get().fetchData(); },
@@ -199,6 +200,60 @@ export const useDataStore = create<DataState>((set, get) => ({
       }
     }
     await supabase.from('orders').update({ status: 'shipped' }).eq('id', orderId);
+    get().fetchData();
+  },
+
+  importOrdersBatch: async (ordersData, marketplaceId) => {
+    const user = useAuthStore.getState().user; if (!user) return;
+    const mkt = get().marketplaces.find(m => m.id === marketplaceId);
+    const feePercent = mkt ? mkt.fee_percent : 0;
+    const feeFixed = mkt ? mkt.fee_fixed : 0;
+
+    for (const order of ordersData) {
+      const { data: existing } = await supabase.from('orders').select('id').eq('marketplace_order_id', order.externalId).maybeSingle();
+      if (existing) continue;
+
+      const totalRevenue = order.total;
+      const fee = (totalRevenue * (feePercent / 100)) + feeFixed;
+      let totalProdCost = 0;
+      const orderItems = [];
+
+      for (const item of order.items) {
+        const skuPlanilha = String(item.sku).trim().toUpperCase();
+        const product = get().products.find(p => p.sku && String(p.sku).trim().toUpperCase() === skuPlanilha);
+        
+        if (product) {
+          totalProdCost += (product.average_cost * item.quantity);
+          orderItems.push({
+            product_id: product.id,
+            quantity: item.quantity,
+            unit_price: item.price,
+            unit_cost_at_sale: product.average_cost
+          });
+        }
+      }
+
+      if (orderItems.length > 0) {
+        const profit = totalRevenue - fee - totalProdCost;
+        const { data: orderRes, error } = await supabase.from('orders').insert([{
+          user_id: user.id,
+          customer_name: order.customer || 'Cliente Importado',
+          marketplace_id: marketplaceId,
+          marketplace_order_id: order.externalId,
+          order_date: order.date,
+          status: 'confirmed',
+          total_price: totalRevenue,
+          marketplace_fee: fee,
+          net_profit: profit,
+          cost_additional: 0
+        }]).select().single();
+
+        if (!error && orderRes) {
+          const itemsToInsert = orderItems.map(i => ({ ...i, order_id: orderRes.id }));
+          await supabase.from('order_items').insert(itemsToInsert);
+        }
+      }
+    }
     get().fetchData();
   }
 }));

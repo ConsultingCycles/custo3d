@@ -4,7 +4,7 @@ import { ShoppingCart, Plus, Trash2, Save, Hash, ArrowLeft, Tag } from 'lucide-r
 import { useNavigate, useParams, Link } from 'react-router-dom';
 
 export const NewOrder = () => {
-  const { products, marketplaces, expenses, createOrder, updateOrder, fetchData } = useDataStore();
+  const { products, marketplaces, expenses, createOrder, updateOrder, fetchData, orders } = useDataStore();
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -12,45 +12,54 @@ export const NewOrder = () => {
   const [marketplaceId, setMarketplaceId] = useState('');
   const [externalOrderId, setExternalOrderId] = useState('');
   
-  // Carrinho de Produtos
   const [cart, setCart] = useState<{ productId: string; qty: number; price: number }[]>([]);
-  
-  // Lista de Despesas Extras
   const [extraExpenses, setExtraExpenses] = useState<{ expenseId: string; qty: number }[]>([]);
 
-  // Inputs temporários (Produtos)
   const [selectedProdId, setSelectedProdId] = useState('');
   const [qty, setQty] = useState(1);
   const [price, setPrice] = useState(0);
 
-  // Inputs temporários (Despesas)
   const [selectedExpenseId, setSelectedExpenseId] = useState('');
   const [expenseQty, setExpenseQty] = useState(1);
 
+  // Carrega dados iniciais
   useEffect(() => {
-    const init = async () => {
-      await fetchData();
-      if (id) {
-        const orderToEdit = useDataStore.getState().orders.find(o => o.id === id);
-        if (orderToEdit) {
-          setCustomer(orderToEdit.customer_name);
-          setMarketplaceId(orderToEdit.marketplace_id || '');
-          setExternalOrderId(orderToEdit.marketplace_order_id || '');
-          
-          // Nota: Em um cenário real com tabela de order_expenses, carregaríamos aqui.
-          // Por enquanto, o valor fixo é carregado apenas como visualização ou mantido se não alterado.
+    fetchData();
+  }, [fetchData]);
+
+  // Carrega dados se for Edição
+  useEffect(() => {
+    if (id && orders.length > 0) {
+      const orderToEdit = orders.find(o => o.id === id);
+      if (orderToEdit) {
+        setCustomer(orderToEdit.customer_name);
+        setMarketplaceId(orderToEdit.marketplace_id || '');
+        setExternalOrderId(orderToEdit.marketplace_order_id || '');
+        
+        // CORREÇÃO: Carrega os produtos
+        if (orderToEdit.items && orderToEdit.items.length > 0) {
+          const items = orderToEdit.items.map(item => ({
+            productId: item.product_id,
+            qty: item.quantity,
+            price: item.unit_price
+          }));
+          setCart(items);
+        }
+
+        // CORREÇÃO: Carrega as despesas extras (Se existirem no JSON)
+        // O campo 'expenses_used' é um JSONB, então vem como array direto
+        if (orderToEdit.expenses_used && Array.isArray(orderToEdit.expenses_used)) {
+          setExtraExpenses(orderToEdit.expenses_used);
         }
       }
-    };
-    init();
-  }, [fetchData, id]);
+    }
+  }, [id, orders]);
 
   useEffect(() => {
     const p = products.find(prod => prod.id === selectedProdId);
     if (p) setPrice(p.suggested_price || 0);
   }, [selectedProdId, products]);
 
-  // --- Funções do Carrinho de Produtos ---
   const addToCart = () => {
     if (!selectedProdId || qty <= 0) return;
     const exists = cart.findIndex(i => i.productId === selectedProdId);
@@ -70,7 +79,6 @@ export const NewOrder = () => {
     setCart(cart.filter((_, i) => i !== index));
   };
 
-  // --- Funções de Despesas ---
   const addExpense = () => {
     if (!selectedExpenseId || expenseQty <= 0) return;
     setExtraExpenses([...extraExpenses, { expenseId: selectedExpenseId, qty: expenseQty }]);
@@ -82,32 +90,24 @@ export const NewOrder = () => {
     setExtraExpenses(extraExpenses.filter((_, i) => i !== index));
   };
 
-  // --- Cálculos ---
   const calculateTotals = () => {
-    // 1. Receita
     const totalRevenue = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-    
-    // 2. Taxas Mkt
     const mkt = marketplaces.find(m => m.id === marketplaceId);
     const fee = mkt ? (totalRevenue * (mkt.fee_percent / 100)) + mkt.fee_fixed : 0;
     
-    // 3. Custo Mercadoria (CMV)
     let totalProdCost = 0;
     cart.forEach(item => {
       const p = products.find(prod => prod.id === item.productId);
       if (p) totalProdCost += (p.average_cost * item.qty);
     });
 
-    // 4. Custos Extras (Soma das despesas selecionadas)
     let totalExtraCost = 0;
     extraExpenses.forEach(item => {
       const e = expenses.find(exp => exp.id === item.expenseId);
       if (e) totalExtraCost += (e.cost * item.qty);
     });
 
-    // Lucro Líquido
     const profit = totalRevenue - fee - totalProdCost - totalExtraCost;
-
     return { totalRevenue, fee, totalProdCost, totalExtraCost, profit };
   };
 
@@ -126,14 +126,14 @@ export const NewOrder = () => {
       };
     });
 
-    // Ajuste aqui: Envia string vazia se não tiver ID, ou o ID real. O backend trata.
     const payload = {
       customer_name: customer,
-      marketplace_id: marketplaceId || '', // Mudança: envia string vazia em vez de null para evitar erro de tipo
+      marketplace_id: marketplaceId || '', // String vazia se não selecionado
       marketplace_order_id: externalOrderId,
       total_price: totals.totalRevenue,
       marketplace_fee: totals.fee,
       cost_additional: totals.totalExtraCost,
+      expenses_used: extraExpenses, // <--- SALVANDO O ARRAY DE DESPESAS NO JSON
       net_profit: totals.profit,
       order_date: id ? undefined : new Date().toISOString(), 
       status: 'draft' as const
@@ -141,7 +141,7 @@ export const NewOrder = () => {
 
     try {
       if (id) {
-        // @ts-ignore: Omitindo erro de tipo estrito temporariamente para facilitar a transição
+        // @ts-ignore
         await updateOrder(id, payload, orderItems);
         alert('Pedido atualizado!');
       } else {
@@ -171,10 +171,10 @@ export const NewOrder = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* COLUNA ESQUERDA - DADOS E PRODUTOS */}
+        {/* === COLUNA ESQUERDA (DADOS + PRODUTOS) === */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Dados do Cliente */}
+          {/* 1. Dados da Venda */}
           <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
             <h3 className="text-lg font-bold text-white mb-4">Dados da Venda</h3>
             <div className="space-y-4">
@@ -215,10 +215,10 @@ export const NewOrder = () => {
             </div>
           </div>
 
-          {/* Adicionar Produtos */}
+          {/* 2. Adicionar Produtos */}
           <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <ShoppingCart className="text-cyan-400" size={20} /> Produtos
+              <ShoppingCart className="text-cyan-400" size={20} /> Adicionar Produtos
             </h3>
             <div className="space-y-3">
               <div className="flex gap-2">
@@ -246,7 +246,7 @@ export const NewOrder = () => {
                 </button>
               </div>
 
-              {/* Lista de Itens do Carrinho */}
+              {/* Lista de Itens */}
               <div className="mt-4 space-y-2">
                 {cart.map((item, index) => {
                   const p = products.find(prod => prod.id === item.productId);
@@ -269,13 +269,12 @@ export const NewOrder = () => {
               </div>
             </div>
           </div>
-
         </div>
 
-        {/* COLUNA DIREITA - DESPESAS E TOTAIS */}
+        {/* === COLUNA DIREITA (DESPESAS + TOTAIS) === */}
         <div className="space-y-6">
           
-          {/* Quadro de Despesas Extras */}
+          {/* 3. Quadro de Despesas Extras */}
           <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <Tag className="text-orange-400" size={20} /> Despesas / Embalagem
@@ -326,7 +325,7 @@ export const NewOrder = () => {
             </div>
           </div>
 
-          {/* Resumo Financeiro */}
+          {/* 4. Resumo Financeiro */}
           <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 space-y-3 sticky top-6">
             <div className="flex justify-between text-sm text-gray-400">
               <span>Subtotal (Venda)</span>
@@ -352,7 +351,7 @@ export const NewOrder = () => {
               </span>
             </div>
             
-            <button onClick={handleSubmit} className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-green-900/20 transition-all transform active:scale-[0.98]">
+            <button onClick={handleSubmit} className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-[0.98]">
               <Save size={20} /> {id ? 'Atualizar Pedido' : 'Criar Pedido'}
             </button>
           </div>

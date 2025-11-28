@@ -10,7 +10,8 @@ import {
   FileText, 
   Factory,
   Store,
-  Tag 
+  Tag,
+  Upload // <--- Ícone de Importar
 } from 'lucide-react';
 
 export const ProtectedRoute = () => {
@@ -22,6 +23,7 @@ export const ProtectedRoute = () => {
   const menuItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/orders', icon: ShoppingCart, label: 'Vendas' },
+    { path: '/import', icon: Upload, label: 'Importar Pedidos' }, // <--- Novo Menu
     { path: '/production', icon: Factory, label: 'Produção' },
     { path: '/products', icon: Package, label: 'Produtos' },
     { path: '/expenses', icon: Tag, label: 'Custos Extras' },
@@ -33,7 +35,6 @@ export const ProtectedRoute = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-900">
-      {/* Sidebar Fixa */}
       <aside className="w-64 bg-gray-800 border-r border-gray-700 fixed h-full z-10">
         <div className="p-6">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
@@ -62,7 +63,6 @@ export const ProtectedRoute = () => {
           })}
         </nav>
 
-        {/* Rodapé da Sidebar */}
         <div className="absolute bottom-0 w-full p-4 border-t border-gray-700 bg-gray-800">
           <button 
             onClick={signOut}
@@ -73,7 +73,6 @@ export const ProtectedRoute = () => {
         </div>
       </aside>
 
-      {/* Conteúdo Principal */}
       <main className="ml-64 flex-1 p-8 bg-gray-900 min-h-screen">
         <div className="max-w-7xl mx-auto">
           <Outlet />
