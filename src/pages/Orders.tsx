@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useDataStore } from '../store/dataStore';
-import { PackageCheck, Plus, CheckCircle, Printer, Square, CheckSquare, Hash, Edit2 } from 'lucide-react';
+import { PackageCheck, Plus, CheckCircle, Printer, Square, CheckSquare, Hash, Edit2, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logo from '../assets/logo.png';
 
 export const Orders = () => {
-  const { orders, marketplaces, products, fetchData, finalizeOrder } = useDataStore();
+  const { orders, marketplaces, products, fetchData, finalizeOrder, deleteOrder } = useDataStore();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const navigate = useNavigate();
 
@@ -16,6 +16,12 @@ export const Orders = () => {
   const handleFinalize = async (id: string) => {
     if (confirm('Efetivar saída do pedido? Isso irá baixar os itens do estoque e não poderá ser mais editado.')) {
       await finalizeOrder(id);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Tem certeza que deseja EXCLUIR este pedido? Esta ação não pode ser desfeita.')) {
+      await deleteOrder(id);
     }
   };
 
@@ -201,8 +207,16 @@ export const Orders = () => {
                     <span className="font-bold text-green-400">R$ {order.net_profit.toFixed(2)}</span>
                   </div>
                   
+                  {/* Botões de Ação */}
                   {!isShipped ? (
                     <>
+                      <button 
+                        onClick={() => handleDelete(order.id)}
+                        className="bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition"
+                        title="Excluir Pedido"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                       <button 
                         onClick={() => navigate(`/orders/edit/${order.id}`)}
                         className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition"

@@ -35,6 +35,14 @@ export interface Filament {
   min_stock_alert_g: number;
 }
 
+// --- NOVO TIPO ---
+export interface Expense {
+  id: string;
+  name: string;
+  cost: number;
+  unit: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -52,6 +60,7 @@ export interface FilamentUsage {
   cost: number;
 }
 
+// --- ATUALIZADO ---
 export interface Print {
   id: string;
   print_date: string;
@@ -59,12 +68,21 @@ export interface Print {
   printer_id: string;
   print_time_minutes: number;
   quantity_produced: number;
+  
   filaments_used: FilamentUsage[];
+  expenses_used?: { expense_id: string; quantity: number; cost: number }[]; // Novo
+  
   cost_filament_total: number;
   cost_energy: number;
   cost_depreciation: number;
-  cost_additional: number;
+  cost_additional: number; // Agora será a soma das despesas
+  
+  applied_margin: number; // Novo
+  suggested_price_generated: number; // Novo
+  
   unit_cost_final: number;
+  energy_rate: number;
+  printer_power_w: number;
   status: 'completed' | 'failed';
 }
 
@@ -86,6 +104,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  marketplace_order_id?: string;
   marketplace_id: string;
   customer_name: string;
   order_date: string;
@@ -93,5 +112,19 @@ export interface Order {
   total_price: number;
   marketplace_fee: number;
   net_profit: number;
-  items?: OrderItem[]; // Populado no frontend
+  items?: OrderItem[];
+}
+
+export interface Order {
+  id: string;
+  marketplace_order_id?: string;
+  marketplace_id: string;
+  customer_name: string;
+  order_date: string;
+  status: 'draft' | 'confirmed' | 'shipped';
+  total_price: number;
+  marketplace_fee: number;
+  cost_additional: number; // <--- NOVO CAMPO
+  net_profit: number;
+  items?: OrderItem[];
 }

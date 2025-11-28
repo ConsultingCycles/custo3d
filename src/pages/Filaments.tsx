@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { useForm } from 'react-hook-form';
 import { Plus, Trash2, Edit2, X, ShoppingCart } from 'lucide-react';
 
 export const Filaments = () => {
-  const { filaments, addFilament, updateFilament, deleteFilament, addFilamentPurchase } = useDataStore();
+  const { filaments, fetchData, addFilament, updateFilament, deleteFilament, addFilamentPurchase } = useDataStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -13,10 +13,15 @@ export const Filaments = () => {
   const { register, handleSubmit, reset, setValue, watch } = useForm();
   const { register: registerPurchase, handleSubmit: handleSubmitPurchase, reset: resetPurchase } = useForm();
   
+  useEffect(() => { fetchData(); }, [fetchData]);
+
   // Auto-calculate cost per gram
   const rollWeight = watch('roll_weight_g');
   const rollPrice = watch('roll_price');
   const costPerGram = (rollWeight && rollPrice) ? (rollPrice / rollWeight).toFixed(4) : '0.00';
+
+  // Monitora a cor para atualizar o picker visual
+  const watchedColor = watch('color');
 
   const openModal = (filament?: any) => {
     if (filament) {
@@ -35,6 +40,7 @@ export const Filaments = () => {
       reset();
       setValue('grams_per_roll', 1000);
       setValue('rolls', 0);
+      setValue('color', '#000000'); // Cor padrão inicial
     }
     setIsModalOpen(true);
   };
@@ -57,7 +63,7 @@ export const Filaments = () => {
         min_stock_alert_g: Number(data.min_stock_alert_g),
         grams_per_roll: Number(data.grams_per_roll),
         rolls: Number(data.rolls),
-        current_weight_g: editingId ? undefined : Number(data.rolls) * Number(data.grams_per_roll) // Set initial weight only on create
+        current_weight_g: editingId ? undefined : Number(data.rolls) * Number(data.grams_per_roll)
       };
 
       if (editingId) {
@@ -114,7 +120,7 @@ export const Filaments = () => {
                 <p className="text-gray-400 text-sm">{filament.brand} - {filament.type}</p>
               </div>
               <div 
-                className="w-6 h-6 rounded-full border border-gray-600" 
+                className="w-8 h-8 rounded-full border-2 border-gray-600 shadow-sm" 
                 style={{ backgroundColor: filament.color || '#fff' }}
               />
             </div>
@@ -193,9 +199,9 @@ export const Filaments = () => {
 
       {/* Edit/Create Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md p-6">
-            <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
               <h2 className="text-xl font-bold text-white">
                 {editingId ? 'Editar Filamento' : 'Novo Filamento'}
               </h2>
@@ -207,7 +213,7 @@ export const Filaments = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Nome</label>
-                <input {...register('name', { required: true })} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" />
+                <input {...register('name', { required: true })} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Ex: PLA Preto Basic" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -222,15 +228,34 @@ export const Filaments = () => {
                     <option value="ABS">ABS</option>
                     <option value="PETG">PETG</option>
                     <option value="TPU">TPU</option>
+                    <option value="ASA">ASA</option>
                     <option value="Outro">Outro</option>
                   </select>
                 </div>
               </div>
 
+              {/* SELETOR DE COR AJUSTADO */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">Cor</label>
-                  <input type="text" {...register('color')} placeholder="#FFFFFF ou Nome" className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" />
+                  <div className="flex gap-2">
+                    {/* Input Color Visual */}
+                    <div className="relative overflow-hidden w-12 h-10 rounded-lg border border-gray-600 shrink-0">
+                      <input 
+                        type="color" 
+                        value={watchedColor || '#000000'}
+                        onChange={(e) => setValue('color', e.target.value)}
+                        className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer border-none p-0"
+                      />
+                    </div>
+                    {/* Input Texto */}
+                    <input 
+                      type="text" 
+                      {...register('color')} 
+                      placeholder="#FFFFFF" 
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" 
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">Alerta Estoque (g)</label>
@@ -260,16 +285,16 @@ export const Filaments = () => {
                 </div>
               </div>
 
-              <div className="bg-gray-700/50 p-3 rounded-lg flex justify-between items-center">
+              <div className="bg-gray-700/50 p-3 rounded-lg flex justify-between items-center border border-gray-600">
                 <span className="text-gray-400 text-sm">Custo calculado:</span>
                 <span className="text-cyan-400 font-bold">R$ {costPerGram} / g</span>
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-3 rounded-lg transition-colors"
+                className="w-full bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold py-3 rounded-lg transition-transform active:scale-[0.98] shadow-lg shadow-cyan-500/20"
               >
-                Salvar
+                Salvar Filamento
               </button>
             </form>
           </div>

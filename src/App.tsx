@@ -12,6 +12,7 @@ import { Filaments } from './pages/Filaments';
 import { Orders } from './pages/Orders';
 import { NewOrder } from './pages/NewOrder';
 import { Marketplaces } from './pages/Marketplaces';
+import { Expenses } from './pages/Expenses'; // <--- Importação Nova
 import { Settings } from './pages/Settings';
 
 function App() {
@@ -33,11 +34,10 @@ function App() {
           <Route path="/products" element={<Products />} />
           <Route path="/filaments" element={<Filaments />} />
           <Route path="/marketplaces" element={<Marketplaces />} />
+          <Route path="/expenses" element={<Expenses />} /> {/* <--- Rota Nova */}
           
           <Route path="/production" element={<Production />} />
           <Route path="/orders" element={<Orders />} />
-          
-          {/* Rotas de Pedido (Novo e Edição) */}
           <Route path="/orders/new" element={<NewOrder />} />
           <Route path="/orders/edit/:id" element={<NewOrder />} />
           

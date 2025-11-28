@@ -10,7 +10,8 @@ import {
   LogOut, 
   FileText, 
   Factory,
-  Store // Adicionado ícone de loja
+  Store,
+  Tag // <--- Novo ícone
 } from 'lucide-react';
 
 export const ProtectedRoute = () => {
@@ -24,7 +25,8 @@ export const ProtectedRoute = () => {
     { path: '/orders', icon: ShoppingCart, label: 'Vendas' },
     { path: '/production', icon: Factory, label: 'Produção' },
     { path: '/products', icon: Package, label: 'Produtos' },
-    { path: '/marketplaces', icon: Store, label: 'Canais de Venda' }, // <--- Item Novo
+    { path: '/expenses', icon: Tag, label: 'Custos Extras' }, // <--- Novo Item
+    { path: '/marketplaces', icon: Store, label: 'Canais de Venda' },
     { path: '/printers', icon: Printer, label: 'Impressoras' },
     { path: '/filaments', icon: FileText, label: 'Filamentos' },
     { path: '/settings', icon: Settings, label: 'Configurações' },

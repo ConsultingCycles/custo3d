@@ -1,23 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { useForm } from 'react-hook-form';
-import { ShoppingBag, Plus, Trash2, X, AlertCircle, Store } from 'lucide-react';
+import { ShoppingBag, Plus, Trash2, X, AlertCircle, Store, Edit2 } from 'lucide-react';
 
 export const Marketplaces = () => {
-  const { marketplaces, fetchData, addMarketplace, deleteMarketplace } = useDataStore();
+  const { marketplaces, fetchData, addMarketplace, updateMarketplace, deleteMarketplace } = useDataStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { register, handleSubmit, reset } = useForm();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const { register, handleSubmit, reset, setValue } = useForm();
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Função para abrir modal em modo Edição ou Criação
+  const openModal = (marketplace?: any) => {
+    if (marketplace) {
+      setEditingId(marketplace.id);
+      setValue('name', marketplace.name);
+      setValue('fee_percent', marketplace.fee_percent);
+      setValue('fee_fixed', marketplace.fee_fixed);
+      setValue('notes', marketplace.notes);
+    } else {
+      setEditingId(null);
+      reset();
+    }
+    setIsModalOpen(true);
+  };
+
   const onSubmit = async (data: any) => {
     try {
-      await addMarketplace({
+      const payload = {
         name: data.name,
         fee_percent: Number(data.fee_percent),
         fee_fixed: Number(data.fee_fixed),
         notes: data.notes
-      });
+      };
+
+      if (editingId) {
+        await updateMarketplace(editingId, payload);
+      } else {
+        await addMarketplace(payload);
+      }
+      
       setIsModalOpen(false);
       reset();
     } catch (error) {
@@ -38,7 +61,7 @@ export const Marketplaces = () => {
           <Store className="text-cyan-400" /> Canais de Venda
         </h1>
         <button 
-          onClick={() => setIsModalOpen(true)} 
+          onClick={() => openModal()} 
           className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-4 rounded-lg flex items-center gap-2"
         >
           <Plus size={20} /> Novo Canal
@@ -58,13 +81,23 @@ export const Marketplaces = () => {
                   <p className="text-xs text-gray-400">Canal Ativo</p>
                 </div>
               </div>
-              <button 
-                onClick={() => handleDelete(m.id)}
-                className="text-gray-500 hover:text-red-400 transition p-2"
-                title="Excluir Canal"
-              >
-                <Trash2 size={18} />
-              </button>
+              
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => openModal(m)}
+                  className="text-gray-500 hover:text-cyan-400 transition p-2"
+                  title="Editar Canal"
+                >
+                  <Edit2 size={18} />
+                </button>
+                <button 
+                  onClick={() => handleDelete(m.id)}
+                  className="text-gray-500 hover:text-red-400 transition p-2"
+                  title="Excluir Canal"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3 bg-gray-700/30 p-4 rounded-lg border border-gray-700">
@@ -95,12 +128,14 @@ export const Marketplaces = () => {
         )}
       </div>
 
-      {/* Modal de Cadastro */}
+      {/* Modal de Cadastro/Edição */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md p-6 shadow-2xl animate-fade-in">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-white">Novo Canal de Venda</h2>
+              <h2 className="text-xl font-bold text-white">
+                {editingId ? 'Editar Canal' : 'Novo Canal de Venda'}
+              </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white transition">
                 <X size={24} />
               </button>
@@ -167,7 +202,7 @@ export const Marketplaces = () => {
                 type="submit" 
                 className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-3 rounded-lg transition transform active:scale-[0.98]"
               >
-                Salvar Canal
+                {editingId ? 'Atualizar Canal' : 'Salvar Canal'}
               </button>
             </form>
           </div>
