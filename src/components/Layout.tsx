@@ -1,4 +1,3 @@
-import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { 
@@ -11,7 +10,7 @@ import {
   FileText, 
   Factory,
   Store,
-  Tag // <--- Novo ícone
+  Tag 
 } from 'lucide-react';
 
 export const ProtectedRoute = () => {
@@ -25,7 +24,7 @@ export const ProtectedRoute = () => {
     { path: '/orders', icon: ShoppingCart, label: 'Vendas' },
     { path: '/production', icon: Factory, label: 'Produção' },
     { path: '/products', icon: Package, label: 'Produtos' },
-    { path: '/expenses', icon: Tag, label: 'Custos Extras' }, // <--- Novo Item
+    { path: '/expenses', icon: Tag, label: 'Custos Extras' },
     { path: '/marketplaces', icon: Store, label: 'Canais de Venda' },
     { path: '/printers', icon: Printer, label: 'Impressoras' },
     { path: '/filaments', icon: FileText, label: 'Filamentos' },

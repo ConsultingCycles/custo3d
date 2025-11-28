@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { useForm } from 'react-hook-form';
 import { Plus, Trash2, Edit2, X, ShoppingCart } from 'lucide-react';
@@ -40,7 +40,7 @@ export const Filaments = () => {
       reset();
       setValue('grams_per_roll', 1000);
       setValue('rolls', 0);
-      setValue('color', '#000000'); // Cor padrão inicial
+      setValue('color', '#000000'); 
     }
     setIsModalOpen(true);
   };
@@ -53,7 +53,8 @@ export const Filaments = () => {
 
   const onSubmit = async (data: any) => {
     try {
-      const payload = {
+      // Base payload
+      const basePayload = {
         name: data.name,
         type: data.type,
         color: data.color,
@@ -62,14 +63,19 @@ export const Filaments = () => {
         roll_price: Number(data.roll_price),
         min_stock_alert_g: Number(data.min_stock_alert_g),
         grams_per_roll: Number(data.grams_per_roll),
-        rolls: Number(data.rolls),
-        current_weight_g: editingId ? undefined : Number(data.rolls) * Number(data.grams_per_roll)
+        rolls: Number(data.rolls)
       };
 
       if (editingId) {
-        await updateFilament(editingId, payload);
+        // Se estiver editando, não mexe no peso atual (current_weight_g)
+        await updateFilament(editingId, basePayload);
       } else {
-        await addFilament(payload);
+        // Se for novo, calcula o peso inicial baseado nos rolos
+        const newPayload = {
+          ...basePayload,
+          current_weight_g: Number(data.rolls) * Number(data.grams_per_roll)
+        };
+        await addFilament(newPayload);
       }
       setIsModalOpen(false);
       reset();
@@ -234,7 +240,7 @@ export const Filaments = () => {
                 </div>
               </div>
 
-              {/* SELETOR DE COR AJUSTADO */}
+              {/* SELETOR DE COR */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">Cor</label>

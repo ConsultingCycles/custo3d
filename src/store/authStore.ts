@@ -14,7 +14,8 @@ interface AuthState {
   fetchProfile: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+// Removido 'get' dos parâmetros pois não estava sendo usado
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   profile: null,
   config: null,
@@ -76,7 +77,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-supabase.auth.onAuthStateChange((event, session) => {
+// Removido 'session' dos parâmetros pois não estava sendo usado
+supabase.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
     useAuthStore.getState().fetchProfile();
   } else if (event === 'SIGNED_OUT') {

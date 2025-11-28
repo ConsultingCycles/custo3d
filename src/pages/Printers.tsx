@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { useForm } from 'react-hook-form';
 import { Printer, Plus, Edit2, Trash2, X, AlertCircle } from 'lucide-react';

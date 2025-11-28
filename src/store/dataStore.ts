@@ -41,6 +41,8 @@ interface DataState {
 
   // Ações Complexas
   registerProduction: (printData: Omit<Print, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+  deletePrint: (id: string) => Promise<void>; // <--- NOVA FUNÇÃO
+  
   createOrder: (order: Omit<Order, 'id' | 'user_id'>, items: any[]) => Promise<void>;
   updateOrder: (id: string, order: Partial<Order>, items: any[]) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
@@ -60,13 +62,14 @@ export const useDataStore = create<DataState>((set, get) => ({
   fetchData: async () => {
     set({ loading: true });
     try {
-      const [fil, print, prod, mkt, ord, exp] = await Promise.all([
+      const [fil, print, prod, mkt, ord, exp, prt] = await Promise.all([
         supabase.from('filaments').select('*').order('name'),
         supabase.from('printers').select('*').order('name'),
         supabase.from('products').select('*').order('name'),
         supabase.from('marketplaces').select('*').order('name'),
         supabase.from('orders').select('*, items:order_items(*)').order('created_at', { ascending: false }),
         supabase.from('expenses').select('*').order('name'),
+        supabase.from('prints').select('*').order('created_at', { ascending: false }), // Carregando histórico
       ]);
 
       set({
@@ -76,76 +79,37 @@ export const useDataStore = create<DataState>((set, get) => ({
         marketplaces: mkt.data || [],
         orders: ord.data || [],
         expenses: exp.data || [],
+        prints: prt.data || [],
       });
     } finally {
       set({ loading: false });
     }
   },
 
-  // --- CRUD GERAL ---
-  addPrinter: async (data) => {
-    const user = useAuthStore.getState().user; if (!user) return;
-    await supabase.from('printers').insert([{ ...data, user_id: user.id }]); get().fetchData();
-  },
-  updatePrinter: async (id, data) => {
-    await supabase.from('printers').update(data).eq('id', id); get().fetchData();
-  },
-  deletePrinter: async (id) => {
-    await supabase.from('printers').delete().eq('id', id); get().fetchData();
-  },
-  addProduct: async (data) => {
-    const user = useAuthStore.getState().user; if (!user) return;
-    await supabase.from('products').insert([{ ...data, user_id: user.id }]); get().fetchData();
-  },
-  updateProduct: async (id, data) => {
-    await supabase.from('products').update(data).eq('id', id); get().fetchData();
-  },
-  deleteProduct: async (id) => {
-    await supabase.from('products').delete().eq('id', id); get().fetchData();
-  },
-  addFilament: async (data) => {
-    const user = useAuthStore.getState().user; if (!user) return;
-    await supabase.from('filaments').insert([{ ...data, user_id: user.id }]); get().fetchData();
-  },
-  updateFilament: async (id, data) => {
-    await supabase.from('filaments').update(data).eq('id', id); get().fetchData();
-  },
-  deleteFilament: async (id) => {
-    await supabase.from('filaments').delete().eq('id', id); get().fetchData();
-  },
-  addFilamentPurchase: async (id, rolls) => {
-    const filament = get().filaments.find(f => f.id === id); if (!filament) return;
-    const newWeight = (filament.current_weight_g || 0) + (rolls * filament.grams_per_roll);
-    const newRolls = (filament.rolls || 0) + rolls;
-    await get().updateFilament(id, { rolls: newRolls, current_weight_g: newWeight });
-  },
-  addMarketplace: async (data) => {
-    const user = useAuthStore.getState().user; if (!user) return;
-    await supabase.from('marketplaces').insert([{ ...data, user_id: user.id }]); get().fetchData();
-  },
-  updateMarketplace: async (id, data) => {
-    await supabase.from('marketplaces').update(data).eq('id', id); get().fetchData();
-  },
-  deleteMarketplace: async (id) => {
-    await supabase.from('marketplaces').delete().eq('id', id); get().fetchData();
-  },
-  addExpense: async (data) => {
-    const user = useAuthStore.getState().user; if (!user) return;
-    await supabase.from('expenses').insert([{ ...data, user_id: user.id }]); get().fetchData();
-  },
-  updateExpense: async (id, data) => {
-    await supabase.from('expenses').update(data).eq('id', id); get().fetchData();
-  },
-  deleteExpense: async (id) => {
-    await supabase.from('expenses').delete().eq('id', id); get().fetchData();
-  },
-  updateConfig: async (config) => {
-    const user = useAuthStore.getState().user; if (!user) return;
-    await supabase.from('user_configs').update(config).eq('user_id', user.id);
-    useAuthStore.getState().fetchProfile();
-  },
+  // ... (CRUDs anteriores mantidos iguais) ...
+  addPrinter: async (data) => { const user = useAuthStore.getState().user; if (!user) return; await supabase.from('printers').insert([{ ...data, user_id: user.id }]); get().fetchData(); },
+  updatePrinter: async (id, data) => { await supabase.from('printers').update(data).eq('id', id); get().fetchData(); },
+  deletePrinter: async (id) => { await supabase.from('printers').delete().eq('id', id); get().fetchData(); },
+  
+  addProduct: async (data) => { const user = useAuthStore.getState().user; if (!user) return; await supabase.from('products').insert([{ ...data, user_id: user.id }]); get().fetchData(); },
+  updateProduct: async (id, data) => { await supabase.from('products').update(data).eq('id', id); get().fetchData(); },
+  deleteProduct: async (id) => { await supabase.from('products').delete().eq('id', id); get().fetchData(); },
+  
+  addFilament: async (data) => { const user = useAuthStore.getState().user; if (!user) return; await supabase.from('filaments').insert([{ ...data, user_id: user.id }]); get().fetchData(); },
+  updateFilament: async (id, data) => { await supabase.from('filaments').update(data).eq('id', id); get().fetchData(); },
+  deleteFilament: async (id) => { await supabase.from('filaments').delete().eq('id', id); get().fetchData(); },
+  addFilamentPurchase: async (id, rolls) => { const filament = get().filaments.find(f => f.id === id); if (!filament) return; const newWeight = (filament.current_weight_g || 0) + (rolls * filament.grams_per_roll); const newRolls = (filament.rolls || 0) + rolls; await get().updateFilament(id, { rolls: newRolls, current_weight_g: newWeight }); },
+  
+  addMarketplace: async (data) => { const user = useAuthStore.getState().user; if (!user) return; await supabase.from('marketplaces').insert([{ ...data, user_id: user.id }]); get().fetchData(); },
+  updateMarketplace: async (id, data) => { await supabase.from('marketplaces').update(data).eq('id', id); get().fetchData(); },
+  deleteMarketplace: async (id) => { await supabase.from('marketplaces').delete().eq('id', id); get().fetchData(); },
+  
+  addExpense: async (data) => { const user = useAuthStore.getState().user; if (!user) return; await supabase.from('expenses').insert([{ ...data, user_id: user.id }]); get().fetchData(); },
+  updateExpense: async (id, data) => { await supabase.from('expenses').update(data).eq('id', id); get().fetchData(); },
+  deleteExpense: async (id) => { await supabase.from('expenses').delete().eq('id', id); get().fetchData(); },
+  
+  updateConfig: async (config) => { const user = useAuthStore.getState().user; if (!user) return; await supabase.from('user_configs').update(config).eq('user_id', user.id); useAuthStore.getState().fetchProfile(); },
 
-  // --- LÓGICA COMPLEXA ---
   registerProduction: async (printData) => {
     const user = useAuthStore.getState().user; if (!user) return;
     const { error: printError } = await supabase.from('prints').insert([{ ...printData, user_id: user.id }]);
@@ -184,6 +148,12 @@ export const useDataStore = create<DataState>((set, get) => ({
       const addedHours = printData.print_time_minutes / 60;
       await supabase.from('printers').update({ total_hours_printed: (printer.total_hours_printed || 0) + addedHours }).eq('id', printer.id);
     }
+    get().fetchData();
+  },
+
+  deletePrint: async (id) => {
+    const { error } = await supabase.from('prints').delete().eq('id', id);
+    if (error) throw error;
     get().fetchData();
   },
 

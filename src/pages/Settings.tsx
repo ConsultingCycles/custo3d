@@ -1,4 +1,3 @@
-import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '../store/authStore';
 import { useDataStore } from '../store/dataStore';
@@ -11,8 +10,6 @@ export const Settings = () => {
   const { register, handleSubmit, formState: { isSubmitting } } = useForm({
     defaultValues: {
       tarifa_energia: config?.tarifa_energia || 0.75,
-      custo_hora_impressora: config?.custo_hora_impressora || 3.00,
-      potencia_impressora: config?.potencia_impressora || 250,
       margem_padrao: config?.margem_padrao || 30,
       moeda: config?.moeda || 'BRL'
     }
@@ -22,8 +19,6 @@ export const Settings = () => {
     try {
       await updateConfig({
         tarifa_energia: Number(data.tarifa_energia),
-        custo_hora_impressora: Number(data.custo_hora_impressora),
-        potencia_impressora: Number(data.potencia_impressora),
         margem_padrao: Number(data.margem_padrao),
         moeda: data.moeda
       });
@@ -56,31 +51,6 @@ export const Settings = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">
-                Custo Hora Impressora (R$/h)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                {...register('custo_hora_impressora')}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none"
-              />
-              <p className="text-xs text-gray-500 mt-1">Depreciação + Manutenção</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                Potência da Impressora (Watts)
-              </label>
-              <input
-                type="number"
-                {...register('potencia_impressora')}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none"
-              />
-              <p className="text-xs text-gray-500 mt-1">Média de consumo (ex: 250W)</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
                 Margem de Lucro Padrão (%)
               </label>
               <input
@@ -88,6 +58,7 @@ export const Settings = () => {
                 {...register('margem_padrao')}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none"
               />
+              <p className="text-xs text-gray-500 mt-1">Margem sugerida inicial para novos cálculos</p>
             </div>
           </div>
 

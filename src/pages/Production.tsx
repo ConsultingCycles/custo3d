@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { useAuthStore } from '../store/authStore';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
@@ -50,11 +50,11 @@ export const Production = () => {
       product_id: '',
       printer_id: '',
       filaments_used: [{ filament_id: '', material_weight_g: 0 }],
-      expenses_used: [{ expense_id: '', quantity: 0 }], // Novo array de despesas
+      expenses_used: [{ expense_id: '', quantity: 0 }],
       print_time_hours: 0,
       print_time_minutes: 0,
       quantity_produced: 1,
-      margin_percentage: config?.margem_padrao || 30 // Margem editável
+      margin_percentage: config?.margem_padrao || 30
     }
   });
 
@@ -63,7 +63,6 @@ export const Production = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   
-  // Atualiza margem se o config carregar depois
   useEffect(() => {
     if (config?.margem_padrao) setValue('margin_percentage', config.margem_padrao);
   }, [config, setValue]);
@@ -80,8 +79,8 @@ export const Production = () => {
     if (f && item.material_weight_g) costFilament += (Number(item.material_weight_g) * (f.roll_price / f.roll_weight_g));
   });
 
-  // 2. Energia
-  const powerW = selectedPrinter?.power_watts || config?.potencia_impressora || 250;
+  // 2. Energia (Corrigido: Removemos dependencia de config.potencia_impressora)
+  const powerW = selectedPrinter?.power_watts || 250; 
   const energyRate = config?.tarifa_energia || 0.75;
   const costEnergy = (powerW * totalTimeHours / 1000) * energyRate;
 
@@ -89,7 +88,7 @@ export const Production = () => {
   const depreciationRate = selectedPrinter ? (selectedPrinter.purchase_price / selectedPrinter.lifespan_hours) : 0;
   const costDepreciation = totalTimeHours * depreciationRate;
 
-  // 4. Despesas Extras (Novo)
+  // 4. Despesas Extras
   let costExpenses = 0;
   formValues.expenses_used?.forEach(item => {
     const e = expenses.find(exp => exp.id === item.expense_id);
@@ -100,7 +99,6 @@ export const Production = () => {
   const quantity = Number(formValues.quantity_produced) || 1;
   const unitCost = totalBatchCost / quantity;
   
-  // 5. Preço Sugerido (Baseado na Margem)
   const margin = Number(formValues.margin_percentage) || 0;
   const suggestedPrice = unitCost * (1 + (margin / 100));
 
@@ -123,16 +121,17 @@ export const Production = () => {
         print_time_minutes: (Number(data.print_time_hours) * 60) + Number(data.print_time_minutes),
         quantity_produced: Number(data.quantity_produced),
         filaments_used: filamentsData,
+        expenses_used: expensesData, // <--- Agora sendo usado!
         cost_filament_total: costFilament,
         cost_energy: costEnergy,
         cost_depreciation: costDepreciation,
-        cost_additional: costExpenses, // Soma das despesas
+        cost_additional: costExpenses,
         unit_cost_final: unitCost,
         status: 'completed',
         energy_rate: energyRate,
         printer_power_w: powerW,
-        applied_margin: margin, // Salva a margem usada
-        suggested_price_generated: suggestedPrice // Salva o preço calculado
+        applied_margin: margin,
+        suggested_price_generated: suggestedPrice
       });
 
       alert('Produção registrada e produto precificado!');
@@ -217,7 +216,7 @@ export const Production = () => {
             </div>
           </div>
 
-          {/* DESPESAS EXTRAS (Novo Quadro) */}
+          {/* DESPESAS EXTRAS */}
           <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
             <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
               <Tag size={20} className="text-cyan-400" /> Despesas / Embalagem

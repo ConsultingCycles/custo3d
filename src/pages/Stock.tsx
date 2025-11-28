@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { Package, AlertTriangle, TrendingDown } from 'lucide-react';
 
@@ -9,7 +9,7 @@ export const Stock = () => {
     fetchData();
   }, [fetchData]);
 
-  // Sort filaments by stock level (lowest first)
+  // Ordena filamentos pelo nível de estoque (menor primeiro)
   const sortedFilaments = [...filaments].sort((a, b) => {
     const stockA = a.current_weight_g || 0;
     const stockB = b.current_weight_g || 0;
@@ -20,7 +20,7 @@ export const Stock = () => {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-white flex items-center gap-3">
         <Package size={32} className="text-cyan-400" />
-        Controle de Estoque
+        Controle de Estoque (Filamentos)
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -50,7 +50,7 @@ export const Stock = () => {
               </div>
 
               <div className="space-y-4">
-                {/* Visual Stock Bar */}
+                {/* Barra Visual de Estoque */}
                 <div className="relative h-4 bg-gray-700 rounded-full overflow-hidden">
                   <div 
                     className={`absolute top-0 left-0 h-full transition-all duration-500 ${

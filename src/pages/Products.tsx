@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { useForm } from 'react-hook-form';
-import { Package, Plus, Edit2, Trash2, X, Search } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, X, Search, AlertCircle } from 'lucide-react';
 
 export const Products = () => {
   const { products, fetchData, addProduct, updateProduct, deleteProduct } = useDataStore();
@@ -28,14 +28,24 @@ export const Products = () => {
   };
 
   const onSubmit = async (data: any) => {
-    const payload = {
+    // Campos básicos
+    const basePayload = {
       name: data.name,
       sku: data.sku,
       description: data.description,
-      // sugerido não é mais enviado daqui
     };
-    if (editingId) await updateProduct(editingId, payload);
-    else await addProduct(payload);
+
+    if (editingId) {
+      await updateProduct(editingId, basePayload);
+    } else {
+      // Se for novo, inicializa os valores financeiros com zero
+      await addProduct({
+        ...basePayload,
+        stock_quantity: 0,
+        average_cost: 0,
+        suggested_price: 0
+      });
+    }
     setIsModalOpen(false);
     reset();
   };
@@ -115,6 +125,14 @@ export const Products = () => {
                 <label className="block text-sm text-gray-400 mb-1">Descrição</label>
                 <textarea {...register('description')} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" rows={3} />
               </div>
+              
+              <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex items-start gap-2">
+                <AlertCircle className="text-blue-400 mt-0.5" size={16} />
+                <p className="text-xs text-blue-200">
+                  O preço sugerido e o custo serão calculados automaticamente após a primeira produção desta peça.
+                </p>
+              </div>
+
               <button type="submit" className="w-full bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold py-3 rounded-lg shadow-lg shadow-cyan-500/20">Salvar Produto</button>
             </form>
           </div>

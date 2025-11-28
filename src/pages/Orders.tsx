@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDataStore } from '../store/dataStore';
 import { PackageCheck, Plus, CheckCircle, Printer, Square, CheckSquare, Hash, Edit2, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';

@@ -12,40 +12,47 @@ import { ptBR } from 'date-fns/locale';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export const Dashboard = () => {
-  const { prints, filaments, marketplaces, fetchData, loading } = useDataStore();
+  const { prints, orders, filaments, products, marketplaces, fetchData, loading } = useDataStore();
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const totalRevenue = prints.reduce((acc, p) => acc + (Number(p.sale_price) || 0), 0);
-  const totalProfit = prints.reduce((acc, p) => acc + (Number(p.profit) || 0), 0);
-  const totalCost = prints.reduce((acc, p) => acc + (Number(p.total_cost) || 0), 0);
+  // --- CÁLCULOS FINANCEIROS (Baseado em Pedidos/Vendas) ---
+  const totalRevenue = orders.reduce((acc, o) => acc + (Number(o.total_price) || 0), 0);
+  const totalProfit = orders.reduce((acc, o) => acc + (Number(o.net_profit) || 0), 0);
+  
+  // --- CÁLCULOS DE CUSTO (Baseado em Produção) ---
+  const totalProductionCost = prints.reduce((acc, p) => 
+    acc + (p.cost_filament_total + p.cost_energy + p.cost_depreciation + p.cost_additional), 0
+  );
+  
   const totalPrints = prints.length;
 
+  // Alerta de Estoque
   const lowStockFilaments = filaments.filter(f => 
     f.current_weight_g !== null && f.current_weight_g < (f.min_stock_alert_g || 100)
   );
 
+  // Gráfico: Distribuição de Custos (Dados de Produção)
   const costDistribution = [
-    { name: 'Filamento', value: prints.reduce((acc, p) => acc + (Number(p.cost_filament) || 0), 0) },
+    { name: 'Filamento', value: prints.reduce((acc, p) => acc + (Number(p.cost_filament_total) || 0), 0) },
     { name: 'Energia', value: prints.reduce((acc, p) => acc + (Number(p.cost_energy) || 0), 0) },
     { name: 'Depreciação', value: prints.reduce((acc, p) => acc + (Number(p.cost_depreciation) || 0), 0) },
-    { name: 'Taxas', value: prints.reduce((acc, p) => acc + (Number(p.marketplace_fee) || 0), 0) },
-    { name: 'Outros', value: prints.reduce((acc, p) => acc + (Number(p.cost_additional) || 0), 0) },
+    { name: 'Extras Produção', value: prints.reduce((acc, p) => acc + (Number(p.cost_additional) || 0), 0) },
   ].filter(d => d.value > 0);
 
+  // Gráfico: Faturamento por Marketplace (Dados de Vendas)
   const revenueByMarketplace = useMemo(() => {
     const data: Record<string, number> = { 'Venda Direta': 0 };
     marketplaces.forEach(m => data[m.name] = 0);
 
-    prints.forEach(p => {
-      const price = Number(p.sale_price) || 0;
-      if (price <= 0) return;
-      if (p.marketplace_id) {
-        const m = marketplaces.find(m => m.id === p.marketplace_id);
+    orders.forEach(o => {
+      const price = Number(o.total_price) || 0;
+      if (o.marketplace_id) {
+        const m = marketplaces.find(m => m.id === o.marketplace_id);
         const name = m ? m.name : 'Desconhecido';
-        data[name] += price;
+        data[name] = (data[name] || 0) + price;
       } else {
         data['Venda Direta'] += price;
       }
@@ -55,56 +62,57 @@ export const Dashboard = () => {
       .map(([name, value]) => ({ name, value }))
       .filter(d => d.value > 0)
       .sort((a, b) => b.value - a.value);
-  }, [prints, marketplaces]);
+  }, [orders, marketplaces]);
 
+  // Gráfico: Top Produtos Vendidos
   const revenueByPart = useMemo(() => {
     const data: Record<string, number> = {};
-    prints.forEach(p => {
-      const price = Number(p.sale_price) || 0;
-      if (price > 0) {
-        data[p.name || 'Sem nome'] = (data[p.name || 'Sem nome'] || 0) + price;
+    
+    orders.forEach(order => {
+      if (order.items) {
+        order.items.forEach(item => {
+          const product = products.find(p => p.id === item.product_id);
+          const productName = product ? product.name : 'Produto Excluído';
+          const totalItemValue = item.unit_price * item.quantity;
+          
+          data[productName] = (data[productName] || 0) + totalItemValue;
+        });
       }
     });
+
     return Object.entries(data)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
-  }, [prints]);
+  }, [orders, products]);
 
-  // EVOLUÇÃO MENSAL DO LUCRO — 100% CORRETO E SEM ERROS
+  // Gráfico: Evolução Mensal de Lucro
   const monthlyData = useMemo(() => {
     const grouped: Record<string, number> = {};
 
-    prints.forEach(p => {
-      const salePrice = Number(p.sale_price) || 0;
-      const totalCost = Number(p.total_cost) || 0;
-
-      if (salePrice > 0) {
-        const lucroReal = salePrice - totalCost;
-
-        let monthKey = 'Sem data';
-        if (p.print_date) {
-          try {
-            const date = new Date(p.print_date);
-            if (!isNaN(date.getTime())) {
-              const mes = format(date, 'MMM/yy', { locale: ptBR });
-              monthKey = mes.charAt(0).toUpperCase() + mes.slice(1).replace('.', '');
-            }
-          } catch (e) {}
-        }
-
-        grouped[monthKey] = (grouped[monthKey] || 0) + lucroReal;
+    orders.forEach(o => {
+      const lucro = Number(o.net_profit) || 0;
+      let monthKey = 'Sem data';
+      
+      if (o.order_date) {
+        try {
+          const date = new Date(o.order_date);
+          if (!isNaN(date.getTime())) {
+            const mes = format(date, 'MMM/yy', { locale: ptBR });
+            monthKey = mes.charAt(0).toUpperCase() + mes.slice(1).replace('.', '');
+          }
+        } catch (e) {}
       }
+
+      grouped[monthKey] = (grouped[monthKey] || 0) + lucro;
     });
 
-    const allMonths = ['Jan/25','Fev/25','Mar/25','Abr/25','Mai/25','Jun/25',
-                       'Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25'];
-
-    return allMonths.map(month => ({
-      name: month,
-      lucro: Number((grouped[month] || 0).toFixed(2))
+    // Ordenação simples (pega os meses que existem)
+    return Object.entries(grouped).map(([name, lucro]) => ({
+      name,
+      lucro: Number(lucro.toFixed(2))
     }));
-  }, [prints]);
+  }, [orders]);
 
   if (loading) {
     return <div className="text-white text-center py-20">Carregando dashboard...</div>;
@@ -112,11 +120,9 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-8 p-6">
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-          <p className="text-gray-400">Visão geral do seu negócio de impressão 3D</p>
-        </div>
+      <header>
+        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+        <p className="text-gray-400">Visão geral do seu negócio</p>
       </header>
 
       {lowStockFilaments.length > 0 && (
@@ -130,10 +136,10 @@ export const Dashboard = () => {
               <div key={f.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 flex justify-between items-center">
                 <div>
                   <p className="font-bold text-white">{f.name}</p>
-                  <p className="text-sm text-gray-400">{f.brand} - {f.type}</p>
+                  <p className="text-sm text-gray-400">{f.brand}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-red-400 font-bold">{f.current_weight_g}g</p>
+                  <p className="text-red-400 font-bold">{f.current_weight_g?.toFixed(0)}g</p>
                   <p className="text-xs text-gray-500">Mín: {f.min_stock_alert_g}g</p>
                 </div>
               </div>
@@ -143,16 +149,16 @@ export const Dashboard = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KpiCard title="Faturamento Total" value={`R$ ${totalRevenue.toFixed(2)}`} icon={DollarSign} color="text-green-400" />
-        <KpiCard title="Lucro Total" value={`R$ ${totalProfit.toFixed(2)}`} icon={TrendingUp} color="text-cyan-400" />
-        <KpiCard title="Custo Total" value={`R$ ${totalCost.toFixed(2)}`} icon={Activity} color="text-red-400" />
-        <KpiCard title="Peças Produzidas" value={totalPrints} icon={Package} color="text-purple-400" />
+        <KpiCard title="Faturamento (Vendas)" value={`R$ ${totalRevenue.toFixed(2)}`} icon={DollarSign} color="text-green-400" />
+        <KpiCard title="Lucro Líquido" value={`R$ ${totalProfit.toFixed(2)}`} icon={TrendingUp} color="text-cyan-400" />
+        <KpiCard title="Custo Produção Acumulado" value={`R$ ${totalProductionCost.toFixed(2)}`} icon={Activity} color="text-orange-400" />
+        <KpiCard title="Lotes Produzidos" value={totalPrints} icon={Package} color="text-purple-400" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Faturamento por Canal */}
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-6">Faturamento por Canal</h3>
+          <h3 className="text-xl font-semibold text-white mb-6">Vendas por Canal</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueByMarketplace} layout="vertical">
@@ -166,9 +172,9 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Top 5 Peças */}
+        {/* Top Produtos */}
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-6">Top 5 Peças (Faturamento)</h3>
+          <h3 className="text-xl font-semibold text-white mb-6">Top Produtos (Receita)</h3>
           <div className="space-y-4">
             {revenueByPart.map((part, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
@@ -187,9 +193,9 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Distribuição de Custos — Tooltip BRANCO 100% garantido */}
+        {/* Distribuição de Custos */}
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-6">Distribuição de Custos</h3>
+          <h3 className="text-xl font-semibold text-white mb-6">Custos de Produção</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -206,31 +212,16 @@ export const Dashboard = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-
-                <RechartsTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg">
-                          <p className="text-white font-medium">
-                            {payload[0].name}: R$ {Number(payload[0].value).toFixed(2)}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-
+                <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Evolução Mensal do Lucro */}
+        {/* Evolução Mensal */}
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-6">Evolução Mensal de Lucro</h3>
+          <h3 className="text-xl font-semibold text-white mb-6">Lucro Mensal</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyData}>
@@ -238,7 +229,7 @@ export const Dashboard = () => {
                 <XAxis dataKey="name" stroke="#9ca3af" />
                 <YAxis stroke="#9ca3af" tickFormatter={(v) => `R$${v}`} />
                 <RechartsTooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
-                <Line type="monotone" dataKey="lucro" stroke="#00E5FF" strokeWidth={6} dot={{ fill: '#00E5FF', r: 8 }} activeDot={{ r: 12 }} />
+                <Line type="monotone" dataKey="lucro" stroke="#00E5FF" strokeWidth={4} dot={{ fill: '#00E5FF' }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
